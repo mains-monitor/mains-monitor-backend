@@ -1,0 +1,8 @@
+.vscode/
+.venv/
+.env*
+secrets*
+__pycache__
+node_modules/
+.serverless/
+set_webhook.sh

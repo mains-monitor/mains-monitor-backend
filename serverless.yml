@@ -1,0 +1,137 @@
+service: el-st-bot-handler
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.9
+  stage: dev
+  region: eu-west-1
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:DescribeTable
+          Resource: "arn:aws:dynamodb:${aws:region}:*:table/el-st-bot.*"
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:PutObjectAcl
+            - s3:GetObject
+          Resource: "arn:aws:s3:::el-st.schedule-bucket-1677079406586-${self:provider.stage}/*"
+
+  environment:
+      TIMEZONE: "Europe/Kyiv"
+      TELEGRAM_TOKEN: ${file(./secrets.json):TELEGRAM_TOKEN}
+      BUCKET: el-st.schedule-bucket-1677079406586-${self:provider.stage}
+      QUEUE_URL: ${construct:electricity-notifications.queueUrl}
+
+functions:
+  bot_handler:
+    name: ${self:custom.p}-handler
+    handler: lambda_handler.bot_handler_entry
+    package:
+      individually: true
+      exclude:
+        - "**/*"
+      include:
+        - "app/**/*"
+        - "*.py"
+    layers:
+      - Ref: PythonRequirementsLambdaLayer
+    events:
+      - http:
+          path: /
+          method: post
+          cors: true
+  
+  electricity_state_change_handler:
+    name: el-st-change-handler-${self:provider.stage}
+    handler: lambda_handler.electricity_state_change_handler
+    package:
+      individually: true
+      exclude:
+        - "**/*"
+      include:
+        - "app/**/*"
+        - "*.py"
+    layers:
+      - Ref: PythonRequirementsLambdaLayer
+    events:
+      - http:
+          path: /set-state
+          method: post
+          cors: true
+
+constructs:
+    electricity-notifications:
+        type: queue
+        worker:
+            name: el-st-notifications-handler-${self:provider.stage}
+            handler: lambda_handler.notifications_handler
+            package:
+              individually: true
+              exclude:
+                - "**/*"
+              include:
+                - "app/**/*"
+                - "*.py"
+            layers:
+              - Ref: PythonRequirementsLambdaLayer
+
+custom:
+  p: ${self:service}-${self:provider.stage}
+  electricityStateLogTableName: el-st-bot.ElectricityStateLog
+  notificationsTable: el-st-bot.NotificationsV2
+  pythonRequirements:
+    layer: true
+
+plugins:
+  - serverless-lift
+  - serverless-python-requirements
+resources:
+  Resources:
+    ElectricityStateLogTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.electricityStateLogTableName}
+        AttributeDefinitions:
+          -
+            AttributeName: type
+            AttributeType: S
+          -
+            AttributeName: created
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: type
+            KeyType: HASH
+          -
+            AttributeName: created
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+    NotificationsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.notificationsTable}
+        AttributeDefinitions:
+          -
+            AttributeName: enabled
+            AttributeType: N
+          -
+            AttributeName: user_id
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: enabled
+            KeyType: HASH
+          -
+            AttributeName: user_id
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
