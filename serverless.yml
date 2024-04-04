@@ -17,7 +17,7 @@ custom:
 provider:
   name: aws
   runtime: python3.9
-  stage: dev
+  stage: stage
   region: eu-west-1
   iam:
     role:
@@ -42,6 +42,17 @@ provider:
       NOTIFICATION_SETTINGS_TABLE: ${self:custom.notificationSettingsTable.name}
       BOT_HANDLER_SECRET: ${file(./secrets.json):BOT_HANDLER_SECRET}
       DEVICE_HANDLER_SECRET: ${file(./secrets.json):DEVICE_HANDLER_SECRET}
+      APIGW_UID: !Ref "ApiGatewayRestApi"
+      APIGW_URL:
+        !Join
+          - ''
+          - - 'https://'
+            - !Ref ApiGatewayRestApi
+            - '.execute-api.'
+            - ${opt:region, self:provider.region}
+            - '.amazonaws.com/'
+            - ${opt:stage, self:provider.stage}
+      BOT_WEBHOOK_URL: ${provider:environment.APIGW_URL}/${provider:environment.BOT_HANDLER_SECRET}/
 
 constructs:
     schedule:
