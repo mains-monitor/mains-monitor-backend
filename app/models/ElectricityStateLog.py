@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from pynamodb.models import Model
 from pynamodb.attributes import UTCDateTimeAttribute, UnicodeAttribute
@@ -22,5 +23,5 @@ class ElectricityStateLog(Model):
     group = UnicodeAttribute()
 
     class Meta:
-        table_name = "el-st-bot.ElectricityStateLog"
-        region = 'eu-west-1'
+        table_name = os.getenv("ELECTRICITY_STATE_LOG_TABLE")
+        region = os.getenv("AWS_DEFAULT_REGION")

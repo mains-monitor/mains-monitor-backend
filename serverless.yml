@@ -1,5 +1,18 @@
-service: el-st-bot-handler
+service: md
 frameworkVersion: '3'
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+  lambdaPrefix: ${self:service}-${self:custom.stage}
+  resourcePrefix: ${self:service}.${self:custom.stage}
+  electricityStateLogTable:
+    version: 1
+    name: ${self:custom.resourcePrefix}.ElectricityStateLog.v${self:custom.electricityStateLogTable.version}
+  notificationSettingsTable: 
+    version: 2
+    name: ${self:custom.resourcePrefix}.NotificationSettings.v${self:custom.notificationSettingsTable.version}
+  pythonRequirements:
+    layer: true
 
 provider:
   name: aws
@@ -18,23 +31,38 @@ provider:
             - dynamodb:UpdateItem
             - dynamodb:DeleteItem
             - dynamodb:DescribeTable
-          Resource: "arn:aws:dynamodb:${aws:region}:*:table/el-st-bot.*"
-        - Effect: Allow
-          Action:
-            - s3:PutObject
-            - s3:PutObjectAcl
-            - s3:GetObject
-          Resource: "arn:aws:s3:::el-st.schedule-bucket-1677079406586-${self:provider.stage}/*"
+          Resource: "arn:aws:dynamodb:${aws:region}:*:table/${self:custom.resourcePrefix}.*"
 
   environment:
       TIMEZONE: "Europe/Kyiv"
       TELEGRAM_TOKEN: ${file(./secrets.json):TELEGRAM_TOKEN}
-      BUCKET: el-st.schedule-bucket-1677079406586-${self:provider.stage}
+      SCHEDULE_BUCKET: ${construct:schedule.bucketName}
       QUEUE_URL: ${construct:electricity-notifications.queueUrl}
+      ELECTRICITY_STATE_LOG_TABLE: ${self:custom.electricityStateLogTable.name}
+      NOTIFICATION_SETTINGS_TABLE: ${self:custom.notificationSettingsTable.name}
+      BOT_HANDLER_SECRET: ${file(./secrets.json):BOT_HANDLER_SECRET}
+      DEVICE_HANDLER_SECRET: ${file(./secrets.json):DEVICE_HANDLER_SECRET}
 
+constructs:
+    schedule:
+      type: storage
+    electricity-notifications:
+        type: queue
+        worker:
+            name: ${self:custom.lambdaPrefix}-notifications-handler
+            handler: lambda_handler.notifications_handler
+            package:
+              individually: true
+              exclude:
+                - "**/*"
+              include:
+                - "app/**/*"
+                - "*.py"
+            layers:
+              - Ref: PythonRequirementsLambdaLayer
 functions:
   bot_handler:
-    name: ${self:custom.p}-handler
+    name: ${self:custom.lambdaPrefix}-bot-handler
     handler: lambda_handler.bot_handler_entry
     package:
       individually: true
@@ -47,12 +75,11 @@ functions:
       - Ref: PythonRequirementsLambdaLayer
     events:
       - http:
-          path: /
+          path: /${file(./secrets.json):BOT_HANDLER_SECRET}/
           method: post
           cors: true
-  
   electricity_state_change_handler:
-    name: el-st-change-handler-${self:provider.stage}
+    name: ${self:custom.lambdaPrefix}-device-handler
     handler: lambda_handler.electricity_state_change_handler
     package:
       individually: true
@@ -65,42 +92,21 @@ functions:
       - Ref: PythonRequirementsLambdaLayer
     events:
       - http:
-          path: /set-state
+          path: /${file(./secrets.json):DEVICE_HANDLER_SECRET}/set-state
           method: post
           cors: true
-
-constructs:
-    electricity-notifications:
-        type: queue
-        worker:
-            name: el-st-notifications-handler-${self:provider.stage}
-            handler: lambda_handler.notifications_handler
-            package:
-              individually: true
-              exclude:
-                - "**/*"
-              include:
-                - "app/**/*"
-                - "*.py"
-            layers:
-              - Ref: PythonRequirementsLambdaLayer
-
-custom:
-  p: ${self:service}-${self:provider.stage}
-  electricityStateLogTableName: el-st-bot.ElectricityStateLog
-  notificationsTable: el-st-bot.NotificationsV2
-  pythonRequirements:
-    layer: true
 
 plugins:
   - serverless-lift
   - serverless-python-requirements
+  - serverless-export-env
+
 resources:
   Resources:
     ElectricityStateLogTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ${self:custom.electricityStateLogTableName}
+        TableName: ${self:custom.electricityStateLogTable.name}
         AttributeDefinitions:
           -
             AttributeName: type
@@ -116,10 +122,10 @@ resources:
             AttributeName: created
             KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
-    NotificationsTable:
+    NotificationSettingsTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ${self:custom.notificationsTable}
+        TableName: ${self:custom.notificationSettingsTable.name}
         AttributeDefinitions:
           -
             AttributeName: enabled

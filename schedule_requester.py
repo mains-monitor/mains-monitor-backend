@@ -11,8 +11,7 @@ if logger.handlers:
         logger.removeHandler(handler)
 
 logging.basicConfig(
-    format='%(asctime)s %(levelname)s - %(name)s - %(message)s',
-    level=logging.INFO
+    format="%(asctime)s %(levelname)s - %(name)s - %(message)s", level=logging.INFO
 )
 
 client = boto3.client("s3")
@@ -38,7 +37,7 @@ class ScheduleExtractor(HTMLParser):
             if marker in data:
                 for line in data.splitlines():
                     if line.startswith(marker):
-                        raw_json_data = line[len(marker):].lstrip()
+                        raw_json_data = line[len(marker) :].lstrip()
                         self._data = json.loads(raw_json_data)
 
     def data(self):
@@ -47,34 +46,26 @@ class ScheduleExtractor(HTMLParser):
 
 def handler(event, context):
     schedule_source_url = os.getenv("SCHEDULE_SOURCE_URL")
-    bucket = os.getenv("BUCKET")
+    bucket = os.getenv("SCHEDULE_BUCKET")
 
     logging.info(f"Requesting schedule info from {schedule_source_url}...")
     parser = ScheduleExtractor()
-    resp = requests.get(os.getenv("SCHEDULE_SOURCE_URL"))
+    resp = requests.get(schedule_source_url)
     if resp.status_code != 200:
         logging.error(f"Failed to get schedule, {resp.status_code=}")
-        return {
-            'statusCode': 500,
-            'body': 'Error'
-        }
+        return {"statusCode": 500, "body": "Error"}
     parser.feed(resp.text)
     raw_data = parser.data()
-    schedule_data = raw_data.get(
-        "data") if raw_data is not None else None
+    schedule_data = raw_data.get("data") if raw_data is not None else None
     if schedule_data is None:
         logger.error(
-            f"Failed to get schedule. Please check what {schedule_source_url} responds")
-        return {
-            'statusCode': 500,
-            'body': 'Error'
-        }
-    client.put_object(Body=json.dumps(
-        schedule_data), Bucket=bucket, Key='schedule.json')
-    return {
-        'statusCode': 200,
-        'body': 'Success'
-    }
+            f"Failed to get schedule. Please check what {schedule_source_url} responds"
+        )
+        return {"statusCode": 500, "body": "Error"}
+    client.put_object(
+        Body=json.dumps(schedule_data), Bucket=bucket, Key="schedule.json"
+    )
+    return {"statusCode": 200, "body": "Success"}
 
 
 if __name__ == "__main__":

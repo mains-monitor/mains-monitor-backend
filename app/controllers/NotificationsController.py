@@ -2,7 +2,7 @@ import os
 import json
 import random
 import dataclasses
-from typing import List, Dict, Any
+from typing import List, Dict
 import boto3
 from telegram import Bot
 from app.bot import bot

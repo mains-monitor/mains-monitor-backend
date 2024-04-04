@@ -11,7 +11,7 @@ from app.models import ElectricityStateLog
 
 def preload_s3_data():
     client = boto3.client("s3")
-    result = client.get_object(Bucket=os.getenv("BUCKET"), Key="schedule.json")
+    result = client.get_object(Bucket=os.getenv("SCHEDULE_BUCKET"), Key="schedule.json")
     raw_json = result["Body"].read().decode("utf-8")
     return json.loads(raw_json)
 

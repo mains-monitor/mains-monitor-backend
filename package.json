@@ -9,7 +9,9 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "serverless-lift": "^1.28.0",
-    "serverless-python-requirements": "^6.0.0"
+    "serverless": "^3.38.0",
+    "serverless-export-env": "github:arabold/serverless-export-env",
+    "serverless-lift": "^1.28.1",
+    "serverless-python-requirements": "^6.1.0"
   }
 }
