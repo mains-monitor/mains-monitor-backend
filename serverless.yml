@@ -1,19 +1,6 @@
 service: md
 frameworkVersion: '3'
 
-custom:
-  stage: ${opt:stage, self:provider.stage}
-  lambdaPrefix: ${self:service}-${self:custom.stage}
-  resourcePrefix: ${self:service}.${self:custom.stage}
-  electricityStateLogTable:
-    version: 1
-    name: ${self:custom.resourcePrefix}.ElectricityStateLog.v${self:custom.electricityStateLogTable.version}
-  notificationSettingsTable: 
-    version: 2
-    name: ${self:custom.resourcePrefix}.NotificationSettings.v${self:custom.notificationSettingsTable.version}
-  pythonRequirements:
-    layer: true
-
 provider:
   name: aws
   runtime: python3.9
@@ -52,7 +39,31 @@ provider:
             - ${opt:region, self:provider.region}
             - '.amazonaws.com/'
             - ${opt:stage, self:provider.stage}
-      BOT_WEBHOOK_URL: ${provider:environment.APIGW_URL}/${provider:environment.BOT_HANDLER_SECRET}/
+      BOT_WEBHOOK_URL: 
+        !Join
+          - ''
+          - - 'https://'
+            - !Ref ApiGatewayRestApi
+            - '.execute-api.'
+            - ${opt:region, self:provider.region}
+            - '.amazonaws.com/'
+            - ${opt:stage, self:provider.stage}
+            - '/'
+            - ${file(./secrets.json):BOT_HANDLER_SECRET}
+            - '/'
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+  lambdaPrefix: ${self:service}-${self:custom.stage}
+  resourcePrefix: ${self:service}.${self:custom.stage}
+  electricityStateLogTable:
+    version: 1
+    name: ${self:custom.resourcePrefix}.ElectricityStateLog.v${self:custom.electricityStateLogTable.version}
+  notificationSettingsTable: 
+    version: 2
+    name: ${self:custom.resourcePrefix}.NotificationSettings.v${self:custom.notificationSettingsTable.version}
+  pythonRequirements:
+    layer: true
 
 constructs:
     schedule:
