@@ -19,8 +19,8 @@ async def handle_bot_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     notifications = NotificationsController()
     if not was_member and is_member:
         notifications.set_enabled(chat.id, True)
-        logger.info(f"Enabled notifications for {chat.title=}")
+        logger.info("Enabled notifications for %s (%s)", chat.title, chat.id)
     elif was_member and not is_member:
         notifications.set_enabled(chat.id, False)
-        logger.info(f"Disabled notifications for {chat.title=}")
+        logger.info("Disabled notifications for %s (%s)", chat.title, chat.id)
 

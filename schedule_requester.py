@@ -4,6 +4,10 @@ import logging
 from html.parser import HTMLParser
 import boto3
 import requests
+from dotenv import load_dotenv
+import sys
+
+load_dotenv()
 
 logger = logging.getLogger()
 if logger.handlers:
@@ -44,17 +48,24 @@ class ScheduleExtractor(HTMLParser):
         return self._data
 
 
-def handler(event, context):
-    schedule_source_url = os.getenv("SCHEDULE_SOURCE_URL")
-    bucket = os.getenv("SCHEDULE_BUCKET")
-
-    logging.info(f"Requesting schedule info from {schedule_source_url}...")
+def handler(file_name, context):
     parser = ScheduleExtractor()
-    resp = requests.get(schedule_source_url)
-    if resp.status_code != 200:
-        logging.error(f"Failed to get schedule, {resp.status_code=}")
-        return {"statusCode": 500, "body": "Error"}
-    parser.feed(resp.text)
+    bucket = os.getenv("SCHEDULE_BUCKET")
+    if not file_name:
+        schedule_source_url = os.getenv("SCHEDULE_SOURCE_URL")
+
+        logging.info(f"Requesting schedule info from {schedule_source_url}...")
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        resp = requests.get(schedule_source_url, headers=headers)
+        if resp.status_code != 200:
+            logging.error(f"Failed to get schedule, {resp.status_code=}")
+            return {"statusCode": 500, "body": "Error"}
+        parser.feed(resp.text)
+    else:
+        with open(file_name, "r", encoding='utf-8') as f:
+            parser.feed(f.read())
     raw_data = parser.data()
     schedule_data = raw_data.get("data") if raw_data is not None else None
     if schedule_data is None:
@@ -69,4 +80,7 @@ def handler(event, context):
 
 
 if __name__ == "__main__":
-    print(handler(None, None))
+    file_name = None
+    if len(sys.argv) > 1:
+        file_name = sys.argv[1]
+    print(handler(file_name, None))

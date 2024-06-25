@@ -5,10 +5,13 @@ from pynamodb.attributes import NumberAttribute, UnicodeAttribute, ListAttribute
 
 class Notifications(Model):
 
-    enabled = NumberAttribute(hash_key=True, default_for_new=1, null=False)
-    user_id = UnicodeAttribute(range_key=True, null=False)
+    device_id = UnicodeAttribute(hash_key=True, null=False, default_for_new="unknown")
+    chat_id = UnicodeAttribute(range_key=True, null=False)
+    enabled = NumberAttribute(default_for_new=1, null=False)
     groups = ListAttribute(null=False, default=list)
     schedule_enabled = BooleanAttribute(default=False, default_for_new=False, null=False)
+    role = UnicodeAttribute(null=False, default_for_new="")
+    template = UnicodeAttribute(null=False, default_for_new="")
 
     class Meta:
         table_name = os.getenv("NOTIFICATION_SETTINGS_TABLE")

@@ -1,7 +1,7 @@
-from enum import Enum, auto
-from dataclasses import dataclass
-from typing import List, Dict
-
+from enum import Enum
+from dataclasses import dataclass, field
+from typing import List
+import marshmallow_dataclass
 
 class StrEnum(Enum):
     @staticmethod
@@ -26,14 +26,18 @@ class StrEnum(Enum):
         return list(map(lambda c: c.value, cls))
     
 
-@dataclass
+@dataclass()
 class ElectricityStateUpdate:
     state: str
     group: str
+    devId: str = field(default=None)
 
 @dataclass
 class NotificationMessage:
-    user_id: str
-    groups: List[str]
-    state_update: Dict[str, str]
+    chat_id: str
     schedule_enabled: bool
+    state_update: ElectricityStateUpdate
+    groups: List[str] = field(default_factory=list)
+
+ElectricityStateUpdateSchema = marshmallow_dataclass.class_schema(ElectricityStateUpdate)
+NotificationMessageSchema = marshmallow_dataclass.class_schema(NotificationMessage)

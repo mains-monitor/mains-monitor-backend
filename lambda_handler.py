@@ -10,7 +10,7 @@ from app.controllers import (
     NotificationsController,
     ScheduleController,
 )
-from app.types import ElectricityStateUpdate, NotificationMessage
+from app.types import ElectricityStateUpdate, NotificationMessage, ElectricityStateUpdateSchema, NotificationMessageSchema
 
 
 async def bot_handler(event, context):
@@ -31,29 +31,29 @@ def bot_handler_entry(event, context):
     return asyncio.get_event_loop().run_until_complete(bot_handler(event, context))
 
 
-def electricity_state_change_handler(event, context):
+def electricity_state_change_handler(event, _):
     '''
     Entry point for the lambda function that handles the state change of the electricity
     (messages from Mains Monitor device)
     '''
     electricity = ElectricityStatusController()
     notifications = NotificationsController()
-    logger.info(f"Received {event=}")
+    logger.info("Received %s" % event)
     state_change_event = json.loads(event["body"])
-    state_update = ElectricityStateUpdate(**state_change_event)
+    state_update = ElectricityStateUpdateSchema().load(state_change_event)
     if electricity.set_electricity_state(state_update):
         notifications.enqueue_notifications(state_update)
     return {"statusCode": 200, "body": "Success"}
 
 
-async def process_messages(event, context):
+async def process_messages(event, _):
     notifications = NotificationsController()
     records = event.get("Records")
-    logger.info(f"Received {records=}")
+    logger.info("Received %s" % records)
     for raw_record in records:
         batch = json.loads(raw_record.get("body"))
-        batch = [NotificationMessage(**item) for item in batch]
-        await notifications.send_notifications_to_users(batch)
+        notification_messages = NotificationMessageSchema().load(batch, many=True)
+        await notifications.send_notifications_to_users(notification_messages)
 
 
 def notifications_handler(event, context):
@@ -83,10 +83,10 @@ if __name__ == "__main__":
                         body=json.dumps(
                             [
                                 {
-                                    "user_id": "-1001956500775",
-                                    "groups": ["1", "2"],
-                                    "state_update": {"state": "OFF", "group": "1"},
-                                    "schedule_enabled": False
+                                    "chat_id": "-1002118372577",
+                                    "groups": ["1", "6"],
+                                    "state_update": {"state": "ON", "group": "1", "devId": "test"},
+                                    "schedule_enabled": True
                                 }
                             ]
                         )

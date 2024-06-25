@@ -8,9 +8,11 @@
 {% if message.schedule_enabled -%}
 {% for group in groups %}
 
-*{{ "bot.group" | t | tg_escape}} {{ group | tg_escape}}:*
-{{ groups_state[group].state_by_schedule | now_in_zone_text | tg_escape }}
-{{ "bot.next" | t | tg_escape }} \- {{ groups_state[group].next_zone | zone_name | tg_escape }} {{ "bot.at" | t | tg_escape}} {{ groups_state[group].next_zone_datetime | time_fmt | tg_escape }}
+*{{ "bot.group" | t | tg_escape }} {{ group | tg_escape }}:*
+{{ groups_state[group].current_state | now_in_zone_text | tg_escape }} до {{ groups_state[group].till | time_fmt }}
+{% for zone in groups_state[group].forecast -%}
+{{ "bot.next" | t | tg_escape }} \- {{ zone.name | zone_name | tg_escape }} {{ "bot.at" | t }} {{ zone.start | time_fmt }} \- {{ zone.end | time_fmt }}
+{% endfor -%}
 {% endfor -%}
 {%- else %}
 

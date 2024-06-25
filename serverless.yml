@@ -57,10 +57,10 @@ custom:
   lambdaPrefix: ${self:service}-${self:custom.stage}
   resourcePrefix: ${self:service}.${self:custom.stage}
   electricityStateLogTable:
-    version: 1
+    version: 2
     name: ${self:custom.resourcePrefix}.ElectricityStateLog.v${self:custom.electricityStateLogTable.version}
   notificationSettingsTable: 
-    version: 2
+    version: 3
     name: ${self:custom.resourcePrefix}.NotificationSettings.v${self:custom.notificationSettingsTable.version}
   pythonRequirements:
     layer: true
@@ -131,14 +131,14 @@ resources:
         TableName: ${self:custom.electricityStateLogTable.name}
         AttributeDefinitions:
           -
-            AttributeName: type
+            AttributeName: device_id
             AttributeType: S
           -
             AttributeName: created
             AttributeType: S
         KeySchema:
           -
-            AttributeName: type
+            AttributeName: device_id
             KeyType: HASH
           -
             AttributeName: created
@@ -150,16 +150,16 @@ resources:
         TableName: ${self:custom.notificationSettingsTable.name}
         AttributeDefinitions:
           -
-            AttributeName: enabled
-            AttributeType: N
+            AttributeName: device_id
+            AttributeType: S
           -
-            AttributeName: user_id
+            AttributeName: chat_id
             AttributeType: S
         KeySchema:
           -
-            AttributeName: enabled
+            AttributeName: device_id
             KeyType: HASH
           -
-            AttributeName: user_id
+            AttributeName: chat_id
             KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
