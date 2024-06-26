@@ -21,14 +21,15 @@ provider:
           Resource: "arn:aws:dynamodb:${aws:region}:*:table/${self:custom.resourcePrefix}.*"
 
   environment:
+      ENV_NAME: ${self:custom.stage}
+      TELEGRAM_TOKEN: ${file(./secrets.${self:custom.stage}.json):TELEGRAM_TOKEN}
+      BOT_HANDLER_SECRET: ${file(./secrets.${self:custom.stage}.json):BOT_HANDLER_SECRET}
+      DEVICE_HANDLER_SECRET: ${file(./secrets.${self:custom.stage}.json):DEVICE_HANDLER_SECRET}
       TIMEZONE: "Europe/Kyiv"
-      TELEGRAM_TOKEN: ${file(./secrets.json):TELEGRAM_TOKEN}
       SCHEDULE_BUCKET: ${construct:schedule.bucketName}
       QUEUE_URL: ${construct:electricity-notifications.queueUrl}
       ELECTRICITY_STATE_LOG_TABLE: ${self:custom.electricityStateLogTable.name}
       NOTIFICATION_SETTINGS_TABLE: ${self:custom.notificationSettingsTable.name}
-      BOT_HANDLER_SECRET: ${file(./secrets.json):BOT_HANDLER_SECRET}
-      DEVICE_HANDLER_SECRET: ${file(./secrets.json):DEVICE_HANDLER_SECRET}
       APIGW_UID: !Ref "ApiGatewayRestApi"
       APIGW_URL:
         !Join
@@ -49,8 +50,23 @@ provider:
             - '.amazonaws.com/'
             - ${opt:stage, self:provider.stage}
             - '/'
-            - ${file(./secrets.json):BOT_HANDLER_SECRET}
+            - ${file(./secrets.${self:custom.stage}.json):BOT_HANDLER_SECRET}
             - '/'
+      MD_API_ENDPOINT_HOST: 
+        !Join
+          - ''
+          - - !Ref ApiGatewayRestApi
+            - '.execute-api.'
+            - ${opt:region, self:provider.region}
+            - '.amazonaws.com'
+      MD_API_ENDPOINT_PATH:
+        !Join
+          - ''
+          - - '/'
+            - ${opt:stage, self:provider.stage}
+            - '/'
+            - ${file(./secrets.${self:custom.stage}.json):DEVICE_HANDLER_SECRET}
+            - '/set-state'
 
 custom:
   stage: ${opt:stage, self:provider.stage}
@@ -97,7 +113,7 @@ functions:
       - Ref: PythonRequirementsLambdaLayer
     events:
       - http:
-          path: /${file(./secrets.json):BOT_HANDLER_SECRET}/
+          path: /${file(./secrets.${self:custom.stage}.json):BOT_HANDLER_SECRET}/
           method: post
           cors: true
   electricity_state_change_handler:
@@ -114,7 +130,7 @@ functions:
       - Ref: PythonRequirementsLambdaLayer
     events:
       - http:
-          path: /${file(./secrets.json):DEVICE_HANDLER_SECRET}/set-state
+          path: /${file(./secrets.${self:custom.stage}.json):DEVICE_HANDLER_SECRET}/set-state
           method: post
           cors: true
 
